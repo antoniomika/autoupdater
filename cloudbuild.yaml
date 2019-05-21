@@ -1,0 +1,84 @@
+steps:
+  - name: "gcr.io/cloud-builders/docker"
+    entrypoint: "bash"
+    args:
+      - "-c"
+      - |
+        docker pull gcr.io/$PROJECT_ID/autoupdater:$BRANCH_NAME-builder-latest || true
+        docker pull gcr.io/$PROJECT_ID/autoupdater:master-builder-latest || true
+
+        docker build -t gcr.io/$PROJECT_ID/autoupdater:$BRANCH_NAME-builder-$SHORT_SHA \
+          -t gcr.io/$PROJECT_ID/autoupdater:$BRANCH_NAME-builder-latest \
+          --cache-from gcr.io/$PROJECT_ID/autoupdater:$BRANCH_NAME-builder-latest \
+          --cache-from gcr.io/$PROJECT_ID/autoupdater:master-builder-latest \
+          --target builder .
+  - name: "gcr.io/$PROJECT_ID/autoupdater:$BRANCH_NAME-builder-$SHORT_SHA"
+    entrypoint: "bash"
+    args:
+      - "-c"
+      - |
+        go test ./...
+  - name: gcr.io/cloud-builders/gcloud
+    args:
+      - kms
+      - decrypt
+      - --ciphertext-file=signing_key.asc.enc
+      - --plaintext-file=signing_key.asc
+      - --location=global
+      - --keyring=autoupdater
+      - --key=autoupdater
+  - name: "gcr.io/$PROJECT_ID/autoupdater:$BRANCH_NAME-builder-$SHORT_SHA"
+    entrypoint: "bash"
+    args:
+      - "-c"
+      - |
+        mv signing_key.asc /tmp/signing_key.asc
+        gpg --import /tmp/signing_key.asc
+
+        supported_platforms="windows/amd64 linux/amd64 darwin/amd64"
+        version=$(cat VERSION)
+        signer=$(gpg --armor --export)
+
+        for platform in ${supported_platforms[@]}
+        do
+          platform_info=(${platform//\// })
+          
+          goos=${platform_info[0]}
+          goarch=${platform_info[1]}
+          
+          output_name="${version}-${goos}-${goarch}"
+
+          env GOOS=$goos GOARCH=$goarch go build -ldflags "-X 'main.version=${version}' -X 'main.signer=${signer}'" -o "artifacts/${output_name}" main.go
+          gpg --output "artifacts/${output_name}.sig" --sign "artifacts/${output_name}"
+
+          if [ "$goos" == "windows" ]; then
+              old_name=${output_name}
+              output_name+='.exe'
+              cp "artifacts/${old_name}" "artifacts/${output_name}"
+          fi
+        done
+  - name: gcr.io/cloud-builders/gsutil
+    entrypoint: "bash"
+    args:
+      - "-c"
+      - |
+        version=$(cat VERSION)
+        gsutil cp artifacts/* "gs://autoupdater-artifacts/versions/${version}"
+        gsutil cp VERSION gs://autoupdater-artifacts/VERSION
+  - name: "gcr.io/cloud-builders/docker"
+    entrypoint: "bash"
+    args:
+      - "-c"
+      - |
+        docker pull gcr.io/$PROJECT_ID/autoupdater:$BRANCH_NAME-builder-latest || true
+        docker pull gcr.io/$PROJECT_ID/autoupdater:master-builder-latest || true
+
+        docker build -t gcr.io/$PROJECT_ID/autoupdater:$SHORT_SHA \
+          --cache-from gcr.io/$PROJECT_ID/autoupdater:$BRANCH_NAME-builder-$SHORT_SHA \
+          --cache-from gcr.io/$PROJECT_ID/autoupdater:master-builder-latest .
+
+        docker tag gcr.io/$PROJECT_ID/autoupdater:$SHORT_SHA gcr.io/$PROJECT_ID/autoupdater:latest
+        docker push gcr.io/$PROJECT_ID/autoupdater:latest
+images:
+  - "gcr.io/$PROJECT_ID/autoupdater:$SHORT_SHA"
+  - "gcr.io/$PROJECT_ID/autoupdater:$BRANCH_NAME-builder-latest"

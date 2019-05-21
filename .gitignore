@@ -1,0 +1,4 @@
+main
+
+artifacts/*
+!artifacts/.gitkeep
