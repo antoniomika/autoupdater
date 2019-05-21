@@ -22,8 +22,8 @@ type AutoUpdater struct {
 	// UpdateBaseURL is the base URL for update operations.
 	// We expect a few things here:
 	// 1. `signing_key.asc` - the signing key that the binary should be verified with.
-	// 2. `latest.json` - a JSON blob containing information about the latest release. Fields are contained in the `Latest` struct.
-	// 3. `versions/{{.Version}}.sig` - a signed file containing this version. Allows support for reverting.
+	// 2. `VERSION` - a blob containing information about the latest release.
+	// 3. `versions/{{.Version}}/{{.Version}}-{{.GOOS}}-{{.GOARCH}}.sig` - a signed file containing this version. Allows support for reverting.
 	UpdateBaseURL string
 
 	// The current version of the application.
@@ -33,7 +33,7 @@ type AutoUpdater struct {
 	Signer string
 }
 
-// Latest contains information from latest.json
+// Latest contains information from VERSION
 type Latest struct {
 	// The version found
 	Version int
