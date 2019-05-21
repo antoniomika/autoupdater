@@ -20,9 +20,15 @@ RUN go test -i ./...
 FROM alpine
 LABEL maintainer="Antonio Mika <me@antoniomika.me>"
 
+RUN apk update \
+        && apk upgrade \
+        && apk add --no-cache \
+        ca-certificates \
+        && update-ca-certificates 2>/dev/null || true
+
 COPY --from=builder /usr/local/go/src/github.com/antoniomika/autoupdater /autoupdater
-COPY --from=builder /go/bin/autoupdater /autoupdater/autoupdater
+COPY --from=builder /go/bin/autoupdater /autoupdater/autoupdater.bin
 
 WORKDIR /autoupdater
 
-ENTRYPOINT ["/autoupdater/autoupdater"]
+ENTRYPOINT ["/autoupdater/autoupdater.bin"]
