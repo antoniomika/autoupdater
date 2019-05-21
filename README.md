@@ -28,17 +28,14 @@ Once done, the general update flow is as follows:
 
 Assumptions?
 ------------
-The assumptions of this project are 1st off, you're using Golang. This will of course not work for other languages, but is fairly trivial to implement elsewhere. 
-
-You also need to have a public server that can be used to serve the update assets, and there is a easy way to ensure these assets are located in the correct place as needed.
-
-The updater assumes it has access to the same directory as the parent binary.
-
-Final assumption is the assets on the remote server are placed in a specific place.
+- You're using Golang. This will of course not work for other languages, but is fairly trivial to implement elsewhere. 
+- You need to have a public server that can be used to serve the update assets, and there is a easy way to ensure these assets are located in the correct place as needed.
+- The updater assumes it has *access* to the same directory as the parent binary.
+- Assets on the remote server are placed in a specific place.
 
 Tradeoffs?
 ----------
-By using GPG, we are offloading hash checking, source verification, and other security limiations to the OpenPGP library for Golang. One may be interested in writing their own system for verfying all of these options, but as such this was the easiest way to do it. By allowing for a remote signing key to also be available, there is the possiblility of a malicious update being deployed if an attacker assumes control of the remote update host. By including the public key within the binary, this makes it less likely for this to occur.
+By using GPG, we are offloading hash checking, source verification, and other security limiations to the OpenPGP library for Golang. One may be interested in writing their own system for verfying all of these options, but as such this was the easiest way to do it. By allowing for a remote signing key to also be available, there is the possiblility of a malicious update being deployed if an attacker assumes control of the remote update host. By including the public key within the binary, this makes it less likely for this to occur. Windows has a weird problem with dealing with a file that is currently running, which makes it difficult to remove the file. To solve for this temporarily, we just rename and then remove and eat the error.
 
 License
 -------
