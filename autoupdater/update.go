@@ -100,6 +100,7 @@ func (a *AutoUpdater) Update(version int) (bool, error) {
 
 	// Create a temporary file for where the update will go
 	executablePathUpdate := executablePath + ".update"
+	executablePathOld := executablePath + ".old"
 	if _, err := os.Stat(executablePathUpdate); err == nil {
 		return false, err
 	}
@@ -110,9 +111,15 @@ func (a *AutoUpdater) Update(version int) (bool, error) {
 	}
 
 	// Everything has been okay to this point, let's update the current binary
+	if err := os.Rename(executablePath, executablePathOld); err != nil {
+		return false, err
+	}
+
 	if err := os.Rename(executablePathUpdate, executablePath); err != nil {
 		return false, err
 	}
+
+	os.Remove(executablePathOld)
 
 	// Check the cli arguments to pass into the new process
 	var cliArgs []string
